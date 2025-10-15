@@ -23,9 +23,11 @@ limitations under the License.
 #      onnxsim
 #   Inference with ONNX
 #      onnxruntime
+#   AzurEngine OpenRT
+#      pyrt
 #
 
-app_name = "hand_controller_onnx_asl"
+app_name = "hand_controller_onnx_asl_rpp"
 
 import numpy as np
 import cv2
@@ -76,24 +78,119 @@ from utils_linux import get_media_dev_by_name, get_video_dev_by_name
 
 from timeit import default_timer as timer
 
-import onnxruntime
+sys.path.append('/usr/local/rpp/lib')
+import pyrt as trt
 
+log = trt.Logger(trt.Logger.INTERNAL_ERROR)
+
+rng = np.random.default_rng()
+
+def volume(obj):
+    vol = 1
+    for elem in obj:
+        vol *= elem
+    return vol
+    
 model_path = './asl_pointnet'
-model_name = 'asl_pointnet.onnx'
-session = onnxruntime.InferenceSession(os.path.join(model_path, model_name))        
+#model_name = 'asl_pointnet.onnx'
+model_name = 'asl_pointnet_sim.onnx'
+model_file = os.path.join(model_path, model_name)
+#int8 = True
+int8 = False
 
-# reading onnx model parameters
-session_inputs = session.get_inputs()
-session_outputs = session.get_outputs()
-num_inputs = len(session_inputs)
-num_outputs = len(session_outputs)
-if True:
-   print("[BlazeDetector.load_model] Number of Inputs : ",num_inputs)
-   for i in range(num_inputs):
-       print("[BlazeDetector.load_model] Input[",i,"] Shape : ",session_inputs[i].shape," (",session_inputs[i].name,")")
-   print("[BlazeDetector.load_model] Number of Outputs : ",num_outputs)
-   for i in range(num_outputs):
-       print("[BlazeDetector.load_model] Output[",i,"] Shape : ",session_outputs[i].shape," (",session_outputs[i].name,")")
+builder = trt.Builder(log)
+config = builder.createBuilderConfig()
+if int8:
+    config.setFlag(trt.BuilderFlag.INT8)
+    int8_calibrator = trt.Int8EntropyCalibrator()
+    config.setInt8Calibrator(int8_calibrator)
+else:
+    config.setFlag(trt.BuilderFlag.BF16)
+
+net = builder.createNetwork()
+
+#print('Create onnx parser.')
+parser = trt.OnnxParser(net, log)
+
+with open(model_file, "rb") as model:
+    if not parser.parse(model.read()):
+        print("ERROR: Failed to parse the ONNX file.")
+        for error in range(parser.num_errors):
+            print(parser.get_error(error))
+
+print(f'onnx model: {model_file}')
+print('Parse onnx model: ' + model_file + ', number of layers: ' + str(net.num_layers))
+
+num_inputs = net.num_inputs
+num_outputs = net.num_outputs
+num_layers = net.num_layers
+
+bindings = []
+input_dimensions = []
+output_dimensions = []
+input_bindings = []
+output_bindings = []
+
+print('Initialize IO buffers')
+for i in range(net.num_inputs):
+    inputx = net.get_input(i)
+    print(f"   net.get_input({i})")
+    print("      name = ",inputx.name)
+    print("      dimensions = ",inputx.dimensions)
+    print("      dataType = ",inputx.dataType)
+    print("      isNetworkInput() = ",inputx.isNetworkInput())
+    print("      isNetworkOutput() = ",inputx.isNetworkOutput())
+    input_dimension = inputx.dimensions
+    input_size = volume(input_dimension) * 4
+    print("      input_dimension = ",input_dimension)
+    print("      input_size = ",input_size)
+    input_binding = trt.DeviceAllocation(input_size)
+    #
+    input_dimensions.append(input_dimension)
+    input_bindings.append(input_binding)
+    bindings.append(int(input_binding))
+
+for i in range(net.num_outputs):
+    outputx = net.get_output(i)
+    print(f"   net.get_output({i})")
+    print("      name = ",outputx.name)
+    print("      dimensions = ",outputx.dimensions)
+    print("      dataType = ",outputx.dataType)
+    print("      isNetworkInput() = ",outputx.isNetworkInput())
+    print("      isNetworkOutput() = ",outputx.isNetworkOutput())
+    output_dimension = outputx.dimensions
+    output_size = volume(output_dimension) * 4
+    print("      output_dimension = ",output_dimension)
+    print("      output_size = ",output_size)
+    output_binding = trt.DeviceAllocation(output_size)
+    #
+    output_dimensions.append(output_dimension)
+    output_bindings.append(output_binding)
+    bindings.append(int(output_binding))
+    
+#print('Build IEngine')
+engine = builder.build_EngineWithConfig(net, config)
+if engine is None:
+    #return
+    exit()
+
+#print("Create execution context")
+context = engine.createExecutionContext()
+
+#print('Prepare Input')
+rng = np.random.default_rng()
+#print(f"   Creating random test data")
+test_data = rng.random(input_dimension,dtype=np.float32)
+#print("      test_data.shape = ",test_data.shape)
+#print("      test_data.dtype = ",test_data.dtype)
+input_binding = input_bindings[0]
+input_binding.copy_from_numpy(test_data)
+
+# Inference (warmup)
+#print("Inference (warmup)")
+context.execute(1, bindings)
+
+#print("Done !")
 
 
 char2int = {
@@ -248,7 +345,7 @@ thresh_confidence = 0.5
 thresh_confidence_prev = thresh_confidence
 
 print("================================================================")
-print("Hand Controller (ONNX) with ASL (ONNX)")
+print("Hand Controller (ONNX) with ASL (RPP-OpenRT)")
 print("================================================================")
 print("\tPress ESC to quit ...")
 print("----------------------------------------------------------------")
@@ -526,14 +623,22 @@ while True:
                 profile_annotate += timer()-start
                         
                 start = timer()
-                input_name = session_inputs[0].name
-                x = np.array([points_norm])
-                #print("[INFO] input_name = ",input_name)
-                #print("[INFO] x.shape = ",x.shape)
-                output_names = [session_outputs[0].name]
-                #print("[INFO] output_names = ",output_names)
-                result = session.run(output_names, {input_name: x})   
-                label = result[0]
+                #print("[INFO] ASL Model : input size = ",points_norm.shape)
+
+                #print('Prepare Input')
+                input_binding = input_bindings[0]
+                input_data = np.array([points_norm],dtype=np.float32)
+                input_binding.copy_from_numpy(input_data)
+
+                # Inference
+                #print("Inference")
+                context.execute(1, bindings)
+                
+                #print('Prepare Output')
+                output_binding = output_bindings[0]
+                label = output_binding.numpy_float()
+                
+                #print("[INFO] ASL Model : output size = ",label.shape)
                 profile_asl_model += timer()-start
 
                 start = timer()
