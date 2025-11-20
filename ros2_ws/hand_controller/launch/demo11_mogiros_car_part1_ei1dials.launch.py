@@ -32,6 +32,11 @@ def generate_launch_description():
             description="Enable Flask Server."
         ),
         DeclareLaunchArgument(
+            "flask_port",  
+            default_value="5001",
+            description="Port for Flask server."
+        ),
+        DeclareLaunchArgument(
             "x_t",
             default_value="0.0",
             description="threshold for activation of twist linear.x control."
@@ -82,6 +87,7 @@ def generate_launch_description():
                 "model": LaunchConfiguration("model"),
                 "verbose": LaunchConfiguration("verbose"),
                 "use_imshow": LaunchConfiguration("use_imshow"),
+                "flask_port": LaunchConfiguration("flask_port"), 
                 # Add any other parameters you need
             }],
             condition=IfCondition(PythonExpression(['"', LaunchConfiguration('use_flask'), '" == "True"']))

@@ -278,9 +278,9 @@ def main():
     
     # Run with debug mode for auto-reload
     if os.environ.get('FLASK_DEBUG'):
-        app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=True, threaded=True)
+        app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=True, threaded=True)
     else:
-        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+        app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)
 
 if __name__ == '__main__':
     main()
