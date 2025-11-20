@@ -18,17 +18,14 @@ limitations under the License.
 #   https://www.github.com/AlbertaBeef/hand_controller
 #
 # Dependencies:
-#   TFLite
-#      tensorflow
-#    or
-#      tflite_runtime
-#   PyTorch
-#      torch
+#   Model conversion to ONNX
+#      tf2onnx
+#      onnxsim
 #   AzurEngine OpenRT
 #      pyrt
 #
 
-app_name = "hand_controller_tflite_asl_rpp"
+app_name = "hand_controller_rpp_asl"
 
 import numpy as np
 import cv2
@@ -57,13 +54,21 @@ print("[INFO] user@hosthame : ",user_host_descriptor)
 
 sys.path.append(os.path.abspath('blaze_app_python/'))
 sys.path.append(os.path.abspath('blaze_app_python/blaze_common/'))
-sys.path.append(os.path.abspath('blaze_app_python/blaze_tflite/'))
+#sys.path.append(os.path.abspath('blaze_app_python/blaze_tflite/'))
 #sys.path.append(os.path.abspath('blaze_app_python/blaze_pytorch/'))
+#sys.path.append(os.path.abspath('blaze_app_python/blaze_onnx/'))
 #sys.path.append(os.path.abspath('blaze_app_python/blaze_vitisai/'))
 #sys.path.append(os.path.abspath('blaze_app_python/blaze_hailo/'))
+sys.path.append(os.path.abspath('blaze_app_python/blaze_rpp/'))
 
-from blaze_tflite.blazedetector import BlazeDetector as BlazeDetector_tflite
-from blaze_tflite.blazelandmark import BlazeLandmark as BlazeLandmark_tflite
+#from blaze_tflite.blazedetector import BlazeDetector as BlazeDetector_tflite
+#from blaze_tflite.blazelandmark import BlazeLandmark as BlazeLandmark_tflite
+#from blaze_pytorch.blazedetector import BlazeDetector as BlazeDetector_pytorch
+#from blaze_pytorch.blazelandmark import BlazeLandmark as BlazeLandmark_pytorch
+#from blaze_onnx.blazedetector import BlazeDetector as BlazeDetector_onnx
+#from blaze_onnx.blazelandmark import BlazeLandmark as BlazeLandmark_onnx
+from blaze_rpp.blazedetector import BlazeDetector as BlazeDetector_rpp
+from blaze_rpp.blazelandmark import BlazeLandmark as BlazeLandmark_rpp
 
 from visualization import draw_detections, draw_landmarks, draw_roi
 from visualization import HAND_CONNECTIONS, FACE_CONNECTIONS, POSE_FULL_BODY_CONNECTIONS, POSE_UPPER_BODY_CONNECTIONS
@@ -313,13 +318,25 @@ pipeline = app_name
 detector_type = "blazepalm"
 landmark_type = "blazehandlandmark"
 
-model1 = "blaze_app_python/blaze_tflite/models/palm_detection_lite.tflite"
-blaze_detector = BlazeDetector_tflite(detector_type)
+#model1 = "blaze_app_python/blaze_tflite/models/palm_detection_lite.tflite"
+#blaze_detector = BlazeDetector_tflite(detector_type)
+#model1 = "blaze_app_python/blaze_pytorch/models/blazepalm.pth"
+#blaze_detector = BlazeDetector_pytorch(detector_type)
+#model1 = "blaze_app_python/blaze_onnx/models/palm_detection_lite.onnx"
+#blaze_detector = BlazeDetector_onnx(detector_type)
+model1 = "blaze_app_python/blaze_rpp/models/palm_detection_lite_sim.onnx"
+blaze_detector = BlazeDetector_rpp(detector_type)
 blaze_detector.set_debug(debug=args.verbose)
 blaze_detector.load_model(model1)
  
-model2 = "blaze_app_python/blaze_tflite/models/hand_landmark_lite.tflite"
-blaze_landmark = BlazeLandmark_tflite(landmark_type)
+#model2 = "blaze_app_python/blaze_tflite/models/hand_landmark_lite.tflite"
+#blaze_landmark = BlazeLandmark_tflite(landmark_type)
+#model2 = "blaze_app_python/blaze_pytorch/models/blazehand_landmark.pth"
+#blaze_landmark = BlazeLandmark_pytorch(landmark_type)
+#model2 = "blaze_app_python/blaze_onnx/models/hand_landmark_lite.onnx"
+#blaze_landmark = BlazeLandmark_onnx(landmark_type)
+model2 = "blaze_app_python/blaze_rpp/models/hand_landmark_lite_sim.onnx"
+blaze_landmark = BlazeLandmark_rpp(landmark_type)
 blaze_landmark.set_debug(debug=args.verbose)
 blaze_landmark.load_model(model2)
 
@@ -333,7 +350,7 @@ thresh_confidence = 0.5
 thresh_confidence_prev = thresh_confidence
 
 print("================================================================")
-print("Hand Controller (TFLite) with ASL (RPP-OpenRT)")
+print("Hand Controller (RPP-OpenRT) with ASL (RPP-OpenRT)")
 print("================================================================")
 print("\tPress ESC to quit ...")
 print("----------------------------------------------------------------")
@@ -610,24 +627,28 @@ while True:
 
                 profile_annotate += timer()-start
                         
-                start = timer()
                 #print("[INFO] ASL Model : input size = ",points_norm.shape)
 
                 #print('Prepare Input')
+                start = timer()
                 input_binding = input_bindings[0]
                 input_data = np.array([points_norm],dtype=np.float32)
                 input_binding.copy_from_numpy(input_data)
+                profile_asl_pre += timer()-start
 
                 # Inference
                 #print("Inference")
+                start = timer()
                 context.execute(1, bindings)
+                profile_asl_model += timer()-start
                 
                 #print('Prepare Output')
+                start = timer()
                 output_binding = output_bindings[0]
                 label = output_binding.numpy_float()
+                profile_asl_post += timer()-start
                 
                 #print("[INFO] ASL Model : output size = ",label.shape)
-                profile_asl_model += timer()-start
 
                 start = timer()
                 asl_id = np.argmax(label)
