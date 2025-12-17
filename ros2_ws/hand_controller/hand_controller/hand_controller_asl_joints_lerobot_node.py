@@ -330,16 +330,16 @@ class HandControllerAslJointsNode(Node):
 
                 if handedness == "Left" and self.actionDetected != "":
                     try:
-                        # shoulder pan joint : index 0, range +2.055L) to -2.055(R)
+                        # shoulder pan joint : index 0, range -2.055(L) to +2.055(R)
                         shoulder_pan_joint = self.lerobot_joint_states.position[0]
                         if self.actionDetected == "L : Left":
-                            shoulder_pan_joint += 0.01
-                            if shoulder_pan_joint > +2.05:
-                                shoulder_pan_joint = +2.05
-                        if self.actionDetected == "R : Right":
                             shoulder_pan_joint -= 0.01
                             if shoulder_pan_joint < -2.05:
                                 shoulder_pan_joint = -2.05
+                        if self.actionDetected == "R : Right":
+                            shoulder_pan_joint += 0.01
+                            if shoulder_pan_joint > +2.05:
+                                shoulder_pan_joint = +2.05
                         self.lerobot_joint_states.position[0] = shoulder_pan_joint
                                                 
                         # shoulder lift joint : index 1, range +2.01(A) to -2.01(B)
@@ -379,12 +379,12 @@ class HandControllerAslJointsNode(Node):
 
                 if handedness == "Right" and self.actionDetected != "":
                     try:
-                        # gripper : index 5, range +0.0(closed) - +1.75 (open)
+                        # gripper : index 5, range -1.75(closed) - +1.75(open)
                         gripper = self.lerobot_joint_states.position[5]
                         if self.actionDetected == "A : Close Gripper":
                             gripper -= 0.05
-                            if gripper < 0:
-                                gripper = 0
+                            if gripper < -1.75:
+                                gripper = -1.75
                         if self.actionDetected == "B : Open Gripper":
                             gripper += 0.05
                             if gripper > +1.75:
