@@ -119,7 +119,7 @@ def generate_launch_description():
     )
     hand_controller_node = Node(
         package='hand_controller',
-        executable='hand_controller_asl_joints_node',
+        executable='hand_controller_asl_joints_mogiros_node',
         name="hand_controller",
         parameters=[
                {"repo_path":LaunchConfiguration("repo_path")},

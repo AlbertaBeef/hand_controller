@@ -43,7 +43,7 @@ def generate_launch_description():
         ),
         Node(
             package='hand_controller',
-            executable='hand_controller_asl_joints_mogiros_node',
+            executable='hand_controller_asl_joints_lerobot_node',
             name="hand_controller",
             parameters=[
                {"repo_path":LaunchConfiguration("repo_path")},
@@ -55,8 +55,7 @@ def generate_launch_description():
             ],
             remappings=[
                ("image_raw", "usbcam_image"),
-               ("/arm_controller/joint_trajectory", "/arm_controller/joint_trajectory"),
-               ("/gripper_controller/joint_trajectory", "/gripper_controller/joint_trajectory")
+               ("/so101_follower/joint_states", "/so101_follower/joint_states")
             ]
         )
     ])

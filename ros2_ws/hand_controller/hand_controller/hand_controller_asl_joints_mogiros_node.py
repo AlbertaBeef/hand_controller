@@ -52,7 +52,7 @@ char2int = {
 class HandControllerAslJointsNode(Node):
 
     def __init__(self):
-        super().__init__('hand_controller_asl_joints_node')
+        super().__init__('hand_controller_asl_joints_mogiros_node')
         self.subscriber1_ = self.create_subscription(Image,'image_raw',self.listener_callback,10)
         self.subscriber1_  # prevent unused variable warning
         self.publisher1_ = self.create_publisher(Image, 'hand_controller/image_annotated', 10)
@@ -441,7 +441,7 @@ class HandControllerAslJointsNode(Node):
         if self.use_imshow == True:
             # DISPLAY
             cv2_bgr_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
-            cv2.imshow('hand_controller_asl_joints_node',cv2_bgr_image)
+            cv2.imshow('hand_controller_asl_joints_mogiros_node',cv2_bgr_image)
             cv2.waitKey(1)                    
         
         # CONVERT BACK TO ROS & PUBLISH
