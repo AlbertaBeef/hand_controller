@@ -187,6 +187,15 @@ class HandControllerAslTwistNode(Node):
             # ASL
             # 
 
+            # Create message
+            msg = Twist()
+            msg.linear.x = 0.0
+            msg.linear.y = 0.0
+            msg.linear.z = 0.0
+            msg.angular.x = 0.0
+            msg.angular.y = 0.0
+            msg.angular.z = 0.0
+
             for i in range(len(flags)):
 
                 flag = flags[i]
@@ -307,15 +316,6 @@ class HandControllerAslTwistNode(Node):
 
                 if handedness == "Left" and self.actionDetected != "":
                     try:
-                        # Create message
-                        msg = Twist()
-                        msg.linear.x = 0.0
-                        msg.linear.y = 0.0
-                        msg.linear.z = 0.0
-                        msg.angular.x = 0.0
-                        msg.angular.y = 0.0
-                        msg.angular.z = 0.0
-
                         if self.actionDetected == "A : Advance":
                           # Modify message to advance (+ve value on x axis)
                           msg.linear.x = 2.0
@@ -334,11 +334,14 @@ class HandControllerAslTwistNode(Node):
                           # Modify message to turn right (-ve value on z axis)
                           msg.angular.z = -2.0
 
-                        self.publisher2_.publish(msg)
+                    except Exception as e:
+                        self.get_logger().warn(f"Error publishing twist message: {e}")
 
                     except Exception as e:
                         self.get_logger().warn(f"Error publishing twist message: {e}")
 
+            self.publisher2_.publish(msg)
+                
         if self.use_imshow == True:
             # DISPLAY
             cv2_bgr_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
