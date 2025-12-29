@@ -57,5 +57,10 @@ def generate_launch_description():
                ("image_raw", "usbcam_image"),
                ("/so101_follower/joint_states", "/so101_follower/joint_states")
             ]
+        ),
+        Node(
+            package='so101_hw_interface',
+            executable='so101_motor_bridge',
+            name='so101_motor_bridge',
         )
     ])
