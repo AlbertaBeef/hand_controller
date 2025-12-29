@@ -35,6 +35,41 @@ def generate_launch_description():
             default_value="False",
             description="Enable OpenCV display."
         ),
+        DeclareLaunchArgument(
+            "x_t",
+            default_value="0.0",
+            description="threshold for activation of twist linear.x control."
+        ),
+        DeclareLaunchArgument(
+            "x_a",
+            default_value="0.0",
+            description="fixed (offset) value for twist linear.x control."
+        ),
+        DeclareLaunchArgument(
+            "x_b",
+            default_value="10.0",
+            description="scale (multiplier) value for twist linear.x control."
+        ),
+        DeclareLaunchArgument(
+            "z_t",
+            default_value="0.0",
+            description="threshold for activation of twist angular.z control."
+        ),
+        DeclareLaunchArgument(
+            "z_a",
+            default_value="0.0",
+            description="fixed (offset) value for twist angular.z control."
+        ),
+        DeclareLaunchArgument(
+            "z_b",
+            default_value="10.0",
+            description="scale (multiplier) value for twist angular.z control."
+        ),
+        DeclareLaunchArgument(
+            "dials_single",
+            default_value="False",
+            description="Use single dials (left) for both linear.x and angular.z."
+        ),        
         Node(
             package='hand_controller',
             executable='usbcam_publisher_node',
@@ -43,7 +78,7 @@ def generate_launch_description():
         ),
         Node(
             package='hand_controller',
-            executable='hand_controller_asl_twist_node',
+            executable='hand_controller_mp1dials_twist_node',
             name="hand_controller",
             parameters=[
                {"repo_path":LaunchConfiguration("repo_path")},
@@ -51,7 +86,14 @@ def generate_launch_description():
                {"blaze_model1":LaunchConfiguration("blaze_model1")},
                {"blaze_model2":LaunchConfiguration("blaze_model2")},
                {"verbose":PythonExpression(['"', LaunchConfiguration('verbose'), '" == "True"'])},
-               {"use_imshow":PythonExpression(['"', LaunchConfiguration('use_imshow'), '" == "True"'])}
+               {"use_imshow":PythonExpression(['"', LaunchConfiguration('use_imshow'), '" == "True"'])},
+               {"x_t":LaunchConfiguration("x_t")},
+               {"x_a":LaunchConfiguration("x_a")},
+               {"x_b":LaunchConfiguration("x_b")},
+               {"z_t":LaunchConfiguration("z_t")},
+               {"z_a":LaunchConfiguration("z_a")},
+               {"z_b":LaunchConfiguration("z_b")},
+               {"dials_single":PythonExpression(['"', LaunchConfiguration('dials_single'), '" == "True"'])}
             ],
             remappings=[
                ("image_raw", "usbcam_image"),
