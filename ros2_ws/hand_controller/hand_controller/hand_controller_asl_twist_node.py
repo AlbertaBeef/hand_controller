@@ -337,9 +337,6 @@ class HandControllerAslTwistNode(Node):
                     except Exception as e:
                         self.get_logger().warn(f"Error publishing twist message: {e}")
 
-                    except Exception as e:
-                        self.get_logger().warn(f"Error publishing twist message: {e}")
-
             self.publisher2_.publish(msg)
                 
         if self.use_imshow == True:
