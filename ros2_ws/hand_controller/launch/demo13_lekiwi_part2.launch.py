@@ -26,6 +26,11 @@ def generate_launch_description():
         default_value="Hand Controller",
         description="Name of Image Viewer for hand_controller/annotations."
     )
+    viewer2_name_arg = DeclareLaunchArgument(
+        "viewer2_name",
+        default_value="LeKiwi Front Camera",
+        description="Name of Image Viewer for LeKiwi mounted front facing camera (gazebo)"
+    )
     use_imshow_arg = DeclareLaunchArgument(
         "use_imshow",
         default_value="True",
@@ -33,7 +38,7 @@ def generate_launch_description():
     )
     
     rviz_launch_arg = DeclareLaunchArgument(
-        'rviz', default_value='true',
+        'rviz', default_value='True',
         description='Open RViz.'
     )
 
@@ -55,7 +60,7 @@ def generate_launch_description():
     rviz_config_file = os.path. join(pkg_lekiwi_description, 'rviz2', 'display.rviz')
 
     # Launch argument for simulation time
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='True')
 
 
     # Process the xacro file and wrap in ParameterValue
@@ -87,6 +92,19 @@ def generate_launch_description():
         condition=IfCondition(PythonExpression(['"', LaunchConfiguration('use_imshow'), '" == "True"']))
     )
 
+    # LeKiwi front camera
+    lekiwi_front_camera_viewer_node = Node(
+        package='hand_controller',
+        executable='usbcam_subscriber_node',
+        name="lekiwi_front_camera",
+        parameters=[
+            {"viewer_name":LaunchConfiguration("viewer2_name")}
+        ],
+        remappings=[
+            ("image_raw", "lekiwi_front_camera/image")
+        ],
+        condition=IfCondition(PythonExpression(['"', LaunchConfiguration('use_imshow'), '" == "True"']))
+    )
     # Spawn the URDF model using the `/world/<world_name>/create` service
     spawn_urdf_node = Node(
         package="ros_gz_sim",
@@ -144,6 +162,27 @@ def generate_launch_description():
         ]
     )
 
+    # Node to bridge camera topics
+    gz_image_bridge_node = Node(
+        package="ros_gz_image",
+        executable="image_bridge",
+        arguments=[
+            "/lekiwi_front_camera/image",
+        ],
+        output="screen",
+        parameters=[
+            {'use_sim_time': True,
+             'lekiwi_front_camera.image.compressed.jpeg_quality': 75,
+            },
+        ],
+    )
+    #joint_state_broadcaster_spawner = Node(
+    #    package="controller_manager",
+    #    executable="spawner",
+    #    arguments=["joint_state_broadcaster"],
+    #    parameters=[{'use_sim_time': True}],
+    #)
+
     omni_controllers_spawner = Node(
         package="controller_manager",
         executable="spawner",
@@ -161,16 +200,19 @@ def generate_launch_description():
     launchDescriptionObject = LaunchDescription()
 
     launchDescriptionObject.add_action(viewer1_name_arg)
+    launchDescriptionObject.add_action(viewer2_name_arg)
     launchDescriptionObject.add_action(use_imshow_arg)    
     launchDescriptionObject.add_action(rviz_launch_arg)
     launchDescriptionObject.add_action(world_arg)
     launchDescriptionObject.add_action(model_arg)
     launchDescriptionObject.add_action(world_launch)
     launchDescriptionObject.add_action(hand_controller_viewer_node)
+    launchDescriptionObject.add_action(lekiwi_front_camera_viewer_node)
     launchDescriptionObject.add_action(rviz_node)
     launchDescriptionObject.add_action(spawn_urdf_node)
     launchDescriptionObject.add_action(robot_state_publisher_node)
     launchDescriptionObject.add_action(gz_bridge_node)
+    launchDescriptionObject.add_action(gz_image_bridge_node)
     launchDescriptionObject.add_action(omni_controllers_spawner)
     launchDescriptionObject.add_action(joint_state_follower_node)    
 
