@@ -47,21 +47,19 @@ def generate_launch_description():
         description='Name of the Gazebo world file to load'
     )
 
-    model_arg = DeclareLaunchArgument(
-        'model', default_value='mogi_bot.urdf',
-        description='Name of the URDF description to load'
+    use_sim_time_arg = DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='false',
+        description='Use sim time if true'
     )
-
+    use_sim_time = LaunchConfiguration('use_sim_time')
+            
     # Path to URDF file
     #urdf_file = os.path.join(pkg_lekiwi_description, 'urdf', 'lekiwi.urdf.xacro')
     urdf_file = os.path.join(pkg_lekiwi_description, 'urdf', 'lekiwi.gazebo.xacro')
     
     # Path to RViz config file
     rviz_config_file = os.path. join(pkg_lekiwi_description, 'rviz2', 'display.rviz')
-
-    # Launch argument for simulation time
-    use_sim_time = LaunchConfiguration('use_sim_time', default='True')
-
 
     # Process the xacro file and wrap in ParameterValue
     robot_description_content = ParameterValue(
@@ -189,9 +187,16 @@ def generate_launch_description():
         arguments=["omni_wheel_drive_controller"],
         parameters=[{'use_sim_time': True}],
     )
-    joint_state_follower_node = Node(
+    #joint_state_follower_node = Node(
+    #    package='lekiwi_description',
+    #    executable='joint_state_follower.py',
+    #    name='joint_state_follower',
+    #    output='screen',
+    #    parameters=[{'use_sim_time': True}]
+    #)
+    twist_follower_node = Node(
         package='lekiwi_description',
-        executable='joint_state_follower.py',
+        executable='twist_command_follower.py',
         name='joint_state_follower',
         output='screen',
         parameters=[{'use_sim_time': True}]
@@ -201,10 +206,10 @@ def generate_launch_description():
 
     launchDescriptionObject.add_action(viewer1_name_arg)
     launchDescriptionObject.add_action(viewer2_name_arg)
-    launchDescriptionObject.add_action(use_imshow_arg)    
+    launchDescriptionObject.add_action(use_imshow_arg)
     launchDescriptionObject.add_action(rviz_launch_arg)
     launchDescriptionObject.add_action(world_arg)
-    launchDescriptionObject.add_action(model_arg)
+    launchDescriptionObject.add_action(use_sim_time_arg)
     launchDescriptionObject.add_action(world_launch)
     launchDescriptionObject.add_action(hand_controller_viewer_node)
     launchDescriptionObject.add_action(lekiwi_front_camera_viewer_node)
@@ -214,6 +219,7 @@ def generate_launch_description():
     launchDescriptionObject.add_action(gz_bridge_node)
     launchDescriptionObject.add_action(gz_image_bridge_node)
     launchDescriptionObject.add_action(omni_controllers_spawner)
-    launchDescriptionObject.add_action(joint_state_follower_node)    
+    #launchDescriptionObject.add_action(joint_state_follower_node)
+    launchDescriptionObject.add_action(twist_follower_node)
 
     return launchDescriptionObject    
