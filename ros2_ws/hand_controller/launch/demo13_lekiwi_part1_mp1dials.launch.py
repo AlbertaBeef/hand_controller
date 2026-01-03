@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
@@ -35,6 +36,11 @@ def generate_launch_description():
             default_value="False",
             description="Enable OpenCV display."
         ),
+        DeclareLaunchArgument(
+            "use_motor_bridge",
+            default_value="True",
+            description="Include motor bridge for LeKiwi mobile base robot."
+        ),        
         DeclareLaunchArgument(
             "x_t",
             default_value="0.0",
@@ -104,5 +110,6 @@ def generate_launch_description():
             package='lekiwi_hw_interface',
             executable='lekiwi_motor_bridge',
             name='lekiwi_motor_bridge',
+            condition=IfCondition(PythonExpression(['"', LaunchConfiguration('use_motor_bridge'), '" == "True"']))            
         )
     ])
