@@ -48,47 +48,6 @@ tria_yellow = (235, 201,  80); # TRIA YELLOW
 tria_aqua   = (  0, 161, 190); # TRIA AQUA
 tria_black  = (  0,   0,   0); # BLACK
 
-# Edge Impulse
-
-from edge_impulse_linux.image import ImageImpulseRunner
-
-
-def resize_pad(img,h_scale,w_scale):
-    """ resize and pad images to be input to the detectors
-
-    The FOMO model take 160x160 images as input. 
-    As such the input image is padded and resized to fit the
-    size while maintaing the aspect ratio.
-
-    Returns:
-        img: HxW
-        scale: scale factor between original image and 160x160 image
-        pad: pixels of padding in the original image
-    """
-
-    size0 = img.shape
-    if size0[0] >= size0[1]:
-        h1 = int(h_scale)
-        w1 = int(w_scale * size0[1] // size0[0])
-        padh = 0
-        padw = int(w_scale - w1)
-        scale = size0[1] / w1
-    else:
-        h1 = int(h_scale * size0[0] // size0[1])
-        w1 = int(w_scale)
-        padh = int(h_scale - h1)
-        padw = 0
-        scale = size0[0] / h1
-    padh1 = padh//2
-    padh2 = padh//2 + padh % 2
-    padw1 = padw//2
-    padw2 = padw//2 + padw % 2
-    img = cv2.resize(img, (w1, h1))
-    img = np.pad(img, ((padh1, padh2), (padw1, padw2), (0, 0)), mode='constant')
-    pad = (int(padh1 * scale), int(padw1 * scale))
-    return img, scale, pad
-
-
 # Visual Control Dials
 
 #CV_DRAW_COLOR_PRIMARY = (255, 255, 0)
@@ -187,10 +146,10 @@ def draw_control_overlay(img, lh_data=None, rh_data=None):
 
     return delta_xy, delta_z
 
-class HandControllerEi1DialsTwistNode(Node):
+class HandControllerQai2DialsTwistNode(Node):
 
     def __init__(self):
-        super().__init__('hand_controller_ei1dials_twist_node')
+        super().__init__('hand_controller_qai2dials_twist_node')
         self.subscriber1_ = self.create_subscription(Image,'image_raw',self.listener_callback,10)
         self.subscriber1_  # prevent unused variable warning
         self.publisher1_ = self.create_publisher(Image, 'hand_controller/image_annotated', 10)
@@ -206,7 +165,7 @@ class HandControllerEi1DialsTwistNode(Node):
         self.declare_parameter("use_imshow", True)
         self.use_imshow = self.get_parameter('use_imshow').value          
         self.get_logger().info('Use imshow : "%s"' % self.use_imshow)
-        
+
         # twist linear.x control
         self.declare_parameter("x_t",  0.0)
         self.declare_parameter("x_a",  0.0)
@@ -229,7 +188,7 @@ class HandControllerEi1DialsTwistNode(Node):
         self.declare_parameter("dials_single", True)
         self.dials_single = self.get_parameter('dials_single').value          
         self.get_logger().info('Dials Single mode : "%s"' % self.dials_single)
-
+        
         # Repo Path
         self.declare_parameter("repo_path", "/root/hand_controller")
         self.repo_path = self.get_parameter('repo_path').value
@@ -241,33 +200,43 @@ class HandControllerEi1DialsTwistNode(Node):
         self.bShowDetection = False
         self.bShowLandmarks = True
         
-        # Blaze
+        # Blaze models
+        self.declare_parameter("blaze_target", "blaze_qairt")
+        self.declare_parameter("blaze_model1", "palm_detection_full.bin")
+        self.declare_parameter("blaze_model2", "hand_landmark_full.bin")
+        self.blaze_target = self.get_parameter('blaze_target').value
+        self.blaze_model1 = self.get_parameter('blaze_model1').value
+        self.blaze_model2 = self.get_parameter('blaze_model2').value
         sys.path.append(os.path.join(self.repo_path,"blaze_app_python"))
         sys.path.append(os.path.join(self.repo_path,"blaze_app_python","blaze_common"))
-
-        # FOMO
-        self.model_default = os.path.join(self.repo_path,"ei_handsv2.eim")
-        self.declare_parameter("model", self.model_default)
-        self.model = self.get_parameter("model").value
-
-        self.get_logger().info('Edge Impulse FOMO model : "%s"' % self.model)
-        self.runner = ImageImpulseRunner(self.model)
-
-        self.model_info = self.runner.init()
-        if self.verbose:
-            # displays WAY TOO MUCH verbose ... :( ...
-            #model_info = runner.init(debug=True) # to get debug print out
-
-            self.get_logger().info('Loaded runner for "%s"' %  self.model_info['project']['owner'] + ' / ' + self.model_info['project']['name'] )
-      
-        self.labels = self.model_info['model_parameters']['labels'] 
-        if self.verbose:
-            self.get_logger().info('Labels = %s' %  self.labels )
-
-        self.model_input_width = self.model_info['model_parameters']['image_input_width']
-        self.model_input_height = self.model_info['model_parameters']['image_input_height']
-        if self.verbose:
-            self.get_logger().info('Model Input Size = %d x %d' %  (self.model_input_width, self.model_input_height) )
+        sys.path.append(os.path.join(self.repo_path,"blaze_app_python",self.blaze_target))
+        #BlazeDetector = importlib.import_module(self.blaze_target+".blazedetector")
+        #BlazeLandmark = importlib.import_module(self.blaze_target+".blazelandmark")
+        if self.blaze_target == "blaze_tflite":
+            from blaze_tflite.blazedetector import BlazeDetector
+            from blaze_tflite.blazelandmark import BlazeLandmark
+        if self.blaze_target == "blaze_pytorch":
+            from blaze_pytorch.blazedetector import BlazeDetector
+            from blaze_pytorch.blazelandmark import BlazeLandmark
+        if self.blaze_target == "blaze_qairt":
+            from blaze_qairt.blazedetector import BlazeDetector
+            from blaze_qairt.blazelandmark import BlazeLandmark
+        #
+        self.detector_type = "blazepalm"
+        self.landmark_type = "blazehandlandmark"
+        #
+        self.blaze_model1_fullpath = os.path.join(self.repo_path,"blaze_app_python",self.blaze_target,"models",self.blaze_model1)
+        self.get_logger().info('Blaze Detector model : "%s"' % self.blaze_model1_fullpath)
+        self.blaze_detector = BlazeDetector(self.detector_type)
+        self.blaze_detector.set_debug(debug=self.verbose)
+        self.blaze_detector.load_model(self.blaze_model1_fullpath)
+        self.blaze_detector.min_score_thresh = 0.8 # increase threshold to prevent false positives
+        #
+        self.blaze_model2_fullpath = os.path.join(self.repo_path,"blaze_app_python",self.blaze_target,"models",self.blaze_model2)
+        self.get_logger().info('Blaze Landmark model : "%s"' % self.blaze_model2_fullpath)
+        self.blaze_landmark = BlazeLandmark(self.landmark_type)
+        self.blaze_landmark.set_debug(debug=self.verbose)
+        self.blaze_landmark.load_model(self.blaze_model2_fullpath)
 
         # Visual Control Dials
 
@@ -303,64 +272,58 @@ class HandControllerEi1DialsTwistNode(Node):
         lh_data, rh_data = None, None        
 
         #            
-        # FOMO pipeline
+        # BlazePalm pipeline
         #
 
         from visualization import draw_detections
-        #from visualization import draw_roi, draw_landmarks
-        #from visualization import HAND_CONNECTIONS
+        from visualization import draw_roi, draw_landmarks
+        from visualization import HAND_CONNECTIONS
     
         #image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-        CAMERA_HEIGHT, CAMERA_WIDTH, _ = image.shape
-        image_size = max(CAMERA_WIDTH,CAMERA_HEIGHT)
-        cropped_size = self.model_input_width    
-        img1,scale1,pad1=resize_pad(image,cropped_size,cropped_size)
+        img1,scale1,pad1 = self.blaze_detector.resize_pad(image)
 
-        # generate features
-        features, cropped = self.runner.get_features_from_image(img1)
-        cropped = cv2.cvtColor(cropped,cv2.COLOR_RGB2BGR)
-
-        # detection objects (FOMO)
-        res = self.runner.classify(features)
-
-        profile_fomo_qty = len(res)
-        if profile_fomo_qty > 0:
-
-            # Process results
-            if "bounding_boxes" in res["result"].keys():
-                if self.verbose:
-                    print('Found %d bounding boxes (%f ms, %f ms)' % (len(res["result"]["bounding_boxes"]), res['timing']['dsp'], res['timing']['classification']))
-
-                for bb in res["result"]["bounding_boxes"]:
-                    if self.verbose:
-                        print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
-                
-                    if bb['label'] == 'face':
-                        continue
+        normalized_detections = self.blaze_detector.predict_on_image(img1)
+        if len(normalized_detections) > 0:
+  
+            detections = self.blaze_detector.denormalize_detections(normalized_detections,scale1,pad1)
                     
-                    if bb['label'] == 'open':    
-                        cropped = cv2.rectangle(cropped, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (0, 255, 0), 2)
-                    if bb['label'] == 'closed':    
-                        cropped = cv2.rectangle(cropped, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (0, 0, 255), 2)
+            xc,yc,scale,theta = self.blaze_detector.detection2roi(detections)
+            roi_img,roi_affine,roi_box = self.blaze_landmark.extract_roi(image,xc,yc,theta,scale)
 
-                    # Visual Control Dials (prepare hand data)
+            results = self.blaze_landmark.predict(roi_img)
+            flags, normalized_landmarks, handedness_scores = results
+                    
+            roi_landmarks = normalized_landmarks.copy()
+                
+            landmarks = self.blaze_landmark.denormalize_landmarks(normalized_landmarks, roi_affine)
+            
+            if self.bShowDetection == True:
+                draw_roi(annotated_image,roi_box)
+                draw_detections(annotated_image,detections)
+
+            if self.bShowLandmarks == True:
+                for i in range(len(flags)):
+                    landmark, flag = landmarks[i], flags[i]
+                    draw_landmarks(annotated_image, landmark[:,:2], HAND_CONNECTIONS, thickness=2, radius=4)
+
+            #
+            # Visual Control Dials (Hand Data)
+            # 
+
+            for i in range(len(normalized_detections)):
+                hand_xc = xc[i]
+                hand_yc = yc[i]
+                hand_z  = 0.0
+
+                landmarks = np.asarray([[hand_xc,hand_yc,hand_z]])
+            
+                # Visual Control Dials (prepare hand data)
+                if hand_xc < (image_width/2):
                     handedness = "Left"
-                    x1 = (((bb['x']) / cropped_size) * image_size) - pad1[1]
-                    y1 = (((bb['y']) / cropped_size) * image_size) - pad1[0]
-                    z1 = 0.0
-                    x2 = (((bb['x'] + bb['width']) / cropped_size) * image_size) - pad1[1]
-                    y2 = (((bb['y'] + bb['height']) / cropped_size) * image_size) - pad1[0]
-                    z2 = 0.0
-                    landmarks = np.asarray([[x1,y1,z1],[x2,y2,z2]])
-                    if x1 < CAMERA_WIDTH/2:
-                        lh_data = HandData(handedness, landmarks, CAMERA_WIDTH, CAMERA_HEIGHT)
-                    else:
-                        rh_data = HandData(handedness, landmarks, CAMERA_WIDTH, CAMERA_HEIGHT)
-
-                    if bb['label'] == 'open':
-                        annotated_image = cv2.rectangle(annotated_image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                    if bb['label'] == 'closed':    
-                        annotated_image = cv2.rectangle(annotated_image, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+                    lh_data = HandData(handedness, landmarks, image_width, image_height)                
+                else:
+                    handedness = "Right"
+                    rh_data = HandData(handedness, landmarks, image_width, image_height)
 
         # Visual Control Dials (display dials)
         if lh_data:
@@ -403,7 +366,7 @@ class HandControllerEi1DialsTwistNode(Node):
         elif angular_z_control < -self.z_t:
             # Turn Right
             msg.angular.z = -self.z_a + (angular_z_control * self.z_b)
-      
+
         self.publisher2_.publish(msg)
         if self.verbose:
             self.get_logger().info(f"Published twist msg with linear.x={msg.linear.x:6.3f} angular.z={msg.angular.z:6.3f}")
@@ -411,7 +374,7 @@ class HandControllerEi1DialsTwistNode(Node):
         if self.use_imshow == True:
             # DISPLAY
             cv2_bgr_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
-            cv2.imshow('hand_controller_ei1dials_twist_node',cv2_bgr_image)
+            cv2.imshow('hand_controller_qai2dials_twist_node',cv2_bgr_image)
             cv2.waitKey(1)                    
         
         # CONVERT BACK TO ROS & PUBLISH
@@ -422,14 +385,14 @@ class HandControllerEi1DialsTwistNode(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    hand_controller_ei1dials_twist_node = HandControllerEi1DialsTwistNode()
+    hand_controller_qai2dials_twist_node = HandControllerQai2DialsTwistNode()
 
-    rclpy.spin(hand_controller_ei1dials_twist_node)
+    rclpy.spin(hand_controller_qai2dials_twist_node)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    hand_controller_ei1dials_twist_node.destroy_node()
+    hand_controller_qai2dials_twist_node.destroy_node()
     rclpy.shutdown()
 
 

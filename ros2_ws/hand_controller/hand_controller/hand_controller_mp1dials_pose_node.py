@@ -1,5 +1,3 @@
-# Copyright 2025 Tria Technologies Inc.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -207,6 +205,7 @@ class HandControllerMp1DialsPoseNode(Node):
         self.blaze_detector = BlazeDetector(self.detector_type)
         self.blaze_detector.set_debug(debug=self.verbose)
         self.blaze_detector.load_model(self.blaze_model1_fullpath)
+        self.blaze_detector.min_score_thresh = 0.8 # increase threshold to prevent false positives
         #
         self.blaze_model2_fullpath = os.path.join(self.repo_path,"blaze_app_python",self.blaze_target,"models",self.blaze_model2)
         self.get_logger().info('Blaze Landmark model : "%s"' % self.blaze_model2_fullpath)
