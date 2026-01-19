@@ -315,6 +315,10 @@ class HandControllerMp1DialsTwistNode(Node):
             # 
 
             for i in range(len(normalized_detections)):
+                #flag = flags[i]
+                #if flag < self.threshold_landmark_confidence:
+                #    continue
+
                 hand_xc = xc[i]
                 hand_yc = yc[i]
                 hand_z  = 0.0
