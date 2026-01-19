@@ -27,6 +27,21 @@ def generate_launch_description():
             description="Name of blaze landmark model."
         ),
         DeclareLaunchArgument(
+            "threshold_detector_minscore",
+            default_value="0.6",
+            description="Minimum Score threshold for detection model."
+        ),
+        DeclareLaunchArgument(
+            "threshold_detector_nms",
+            default_value="0.3",
+            description="NMS threshold for detection model."
+        ),
+        DeclareLaunchArgument(
+            "threshold_landmark_confidence",
+            default_value="0.5",
+            description="Confidence Score threshold for landmark model."
+        ),
+        DeclareLaunchArgument(
             "verbose",
             default_value="True",
             description="Verbose mode."
@@ -56,6 +71,9 @@ def generate_launch_description():
                {"blaze_target":LaunchConfiguration("blaze_target")},
                {"blaze_model1":LaunchConfiguration("blaze_model1")},
                {"blaze_model2":LaunchConfiguration("blaze_model2")},
+               {"threshold_detector_minscore":LaunchConfiguration("threshold_detector_minscore")},
+               {"threshold_detector_nms":LaunchConfiguration("threshold_detector_nms")},
+               {"threshold_landmark_confidence":LaunchConfiguration("threshold_landmark_confidence")},
                {"verbose":PythonExpression(['"', LaunchConfiguration('verbose'), '" == "True"'])},
                {"use_imshow":PythonExpression(['"', LaunchConfiguration('use_imshow'), '" == "True"'])}
             ],

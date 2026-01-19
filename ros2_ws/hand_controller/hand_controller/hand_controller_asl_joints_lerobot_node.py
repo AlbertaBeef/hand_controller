@@ -86,6 +86,18 @@ class HandControllerAslJointsNode(Node):
         self.blaze_target = self.get_parameter('blaze_target').value
         self.blaze_model1 = self.get_parameter('blaze_model1').value
         self.blaze_model2 = self.get_parameter('blaze_model2').value
+        self.get_logger().info(f'blaze_target : {self.blaze_target}')
+        self.get_logger().info(f'blaze_model1 : {self.blaze_model1}')
+        self.get_logger().info(f'blaze_model2 : {self.blaze_model2}')
+        self.declare_parameter("threshold_detector_minscore"  , 0.6)
+        self.declare_parameter("threshold_detector_nms"       , 0.3)
+        self.declare_parameter("threshold_landmark_confidence", 0.5)
+        self.threshold_detector_minscore   = self.get_parameter('threshold_detector_minscore'  ).value
+        self.threshold_detector_nms        = self.get_parameter('threshold_detector_nms'       ).value
+        self.threshold_landmark_confidence = self.get_parameter('threshold_landmark_confidence').value
+        self.get_logger().info(f'threshold_detector_minscore   : {self.threshold_detector_minscore}'  )
+        self.get_logger().info(f'threshold_detector_nms        : {self.threshold_detector_nms}'       )
+        self.get_logger().info(f'threshold_landmark_confidence : {self.threshold_landmark_confidence}')
         sys.path.append(os.path.join(self.repo_path,"blaze_app_python"))
         sys.path.append(os.path.join(self.repo_path,"blaze_app_python","blaze_common"))
         sys.path.append(os.path.join(self.repo_path,"blaze_app_python",self.blaze_target))
@@ -106,6 +118,8 @@ class HandControllerAslJointsNode(Node):
         self.blaze_detector = BlazeDetector(self.detector_type)
         self.blaze_detector.set_debug(debug=self.verbose)
         self.blaze_detector.load_model(self.blaze_model1_fullpath)
+        self.blaze_detector.min_score_thresh = self.threshold_detector_minscore
+        self.blaze_detector.min_suppression_threshold = self.threshold_detector_nms
         #
         self.blaze_model2_fullpath = os.path.join(self.repo_path,"blaze_app_python",self.blaze_target,"models",self.blaze_model2)
         self.get_logger().info('Blaze Landmark model : "%s"' % self.blaze_model2_fullpath)
@@ -204,7 +218,7 @@ class HandControllerAslJointsNode(Node):
             for i in range(len(flags)):
 
                 flag = flags[i]
-                if flag < 0.5:
+                if flag < self.threshold_landmark_confidence:
                    continue
 
                 landmark = landmarks[i]

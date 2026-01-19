@@ -48,10 +48,10 @@ char2int = {
 
 
 @torch.no_grad()        
-class HandControllerAslTwistNode(Node):
+class HandControllerQai2AslTwistNode(Node):
 
     def __init__(self):
-        super().__init__('hand_controller_asl_twist_node')
+        super().__init__('hand_controller_qai2asl_twist_node')
         self.subscriber1_ = self.create_subscription(Image,'image_raw',self.listener_callback,10)
         self.subscriber1_  # prevent unused variable warning
         self.publisher1_ = self.create_publisher(Image, 'hand_controller/image_annotated', 10)
@@ -80,9 +80,9 @@ class HandControllerAslTwistNode(Node):
         self.bShowLandmarks = True
         
         # Blaze models
-        self.declare_parameter("blaze_target", "blaze_tflite")
-        self.declare_parameter("blaze_model1", "palm_detection_lite.tflite")
-        self.declare_parameter("blaze_model2", "hand_landmark_lite.tflite")
+        self.declare_parameter("blaze_target", "blaze_qairt")
+        self.declare_parameter("blaze_model1", "palm_detection_full.bin")
+        self.declare_parameter("blaze_model2", "hand_landmark_full.bin")
         self.blaze_target = self.get_parameter('blaze_target').value
         self.blaze_model1 = self.get_parameter('blaze_model1').value
         self.blaze_model2 = self.get_parameter('blaze_model2').value
@@ -109,6 +109,9 @@ class HandControllerAslTwistNode(Node):
         if self.blaze_target == "blaze_pytorch":
             from blaze_pytorch.blazedetector import BlazeDetector
             from blaze_pytorch.blazelandmark import BlazeLandmark
+        if self.blaze_target == "blaze_qairt":
+            from blaze_qairt.blazedetector import BlazeDetector
+            from blaze_qairt.blazelandmark import BlazeLandmark
         #
         self.detector_type = "blazepalm"
         self.landmark_type = "blazehandlandmark"
@@ -354,7 +357,7 @@ class HandControllerAslTwistNode(Node):
         if self.use_imshow == True:
             # DISPLAY
             cv2_bgr_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
-            cv2.imshow('hand_controller_asl_twist_node',cv2_bgr_image)
+            cv2.imshow('hand_controller_qai2asl_twist_node',cv2_bgr_image)
             cv2.waitKey(1)                    
         
         # CONVERT BACK TO ROS & PUBLISH
@@ -365,14 +368,14 @@ class HandControllerAslTwistNode(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    hand_controller_asl_twist_node = HandControllerAslTwistNode()
+    hand_controller_qai2asl_twist_node = HandControllerQai2AslTwistNode()
 
-    rclpy.spin(hand_controller_asl_twist_node)
+    rclpy.spin(hand_controller_qai2asl_twist_node)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    hand_controller_asl_twist_node.destroy_node()
+    hand_controller_qai2asl_twist_node.destroy_node()
     rclpy.shutdown()
 
 
