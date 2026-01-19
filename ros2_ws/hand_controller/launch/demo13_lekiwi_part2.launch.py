@@ -184,7 +184,10 @@ def generate_launch_description():
     omni_controllers_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["omni_wheel_drive_controller"],
+        arguments=[
+            "omni_wheel_drive_controller",
+            "--controller-manager-timeout", "30"  # 30 seconds instead of 5
+        ],
         parameters=[{'use_sim_time': True}],
     )
     #joint_state_follower_node = Node(
