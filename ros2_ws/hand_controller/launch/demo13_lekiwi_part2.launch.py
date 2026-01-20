@@ -186,7 +186,8 @@ def generate_launch_description():
         executable="spawner",
         arguments=[
             "omni_wheel_drive_controller",
-            "--controller-manager-timeout", "30"  # 30 seconds instead of 5
+            "--controller-manager-timeout", "30",
+            "--switch-timeout", "60",  # 60 seconds instead of 5
         ],
         parameters=[{'use_sim_time': True}],
     )
