@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, RegisterEventHandler
+from launch.event_handlers import OnProcessStart
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -174,12 +175,13 @@ def generate_launch_description():
             },
         ],
     )
-    #joint_state_broadcaster_spawner = Node(
-    #    package="controller_manager",
-    #    executable="spawner",
-    #    arguments=["joint_state_broadcaster"],
-    #    parameters=[{'use_sim_time': True}],
-    #)
+
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster"],
+        parameters=[{'use_sim_time': True}],
+    )
 
     omni_controllers_spawner = Node(
         package="controller_manager",
@@ -191,20 +193,20 @@ def generate_launch_description():
         ],
         parameters=[{'use_sim_time': True}],
     )
-    #joint_state_follower_node = Node(
-    #    package='lekiwi_description',
-    #    executable='joint_state_follower.py',
-    #    name='joint_state_follower',
-    #    output='screen',
-    #    parameters=[{'use_sim_time': True}]
-    #)
-    twist_follower_node = Node(
+    joint_state_follower_node = Node(
         package='lekiwi_description',
-        executable='twist_command_follower.py',
-        name='twist_command_follower',
+        executable='joint_state_follower.py',
+        name='joint_state_follower',
         output='screen',
         parameters=[{'use_sim_time': True}]
     )
+    #twist_follower_node = Node(
+    #    package='lekiwi_description',
+    #    executable='twist_command_follower.py',
+    #    name='twist_command_follower',
+    #    output='screen',
+    #    parameters=[{'use_sim_time': True}]
+    #)
 
     launchDescriptionObject = LaunchDescription()
 
@@ -222,8 +224,16 @@ def generate_launch_description():
     launchDescriptionObject.add_action(robot_state_publisher_node)
     launchDescriptionObject.add_action(gz_bridge_node)
     launchDescriptionObject.add_action(gz_image_bridge_node)
-    launchDescriptionObject.add_action(omni_controllers_spawner)
-    #launchDescriptionObject.add_action(joint_state_follower_node)
-    launchDescriptionObject.add_action(twist_follower_node)
+    
+    # Spawn controllers only after Gazebo bridge is ready
+    launchDescriptionObject.add_action(
+        RegisterEventHandler(
+            event_handler=OnProcessStart(
+                target_action=gz_bridge_node,
+                on_start=[joint_state_broadcaster_spawner, omni_controllers_spawner, joint_state_follower_node],
+            )
+        )
+    )
+    #launchDescriptionObject.add_action(twist_follower_node)
 
-    return launchDescriptionObject    
+    return launchDescriptionObject
